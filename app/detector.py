@@ -1,16 +1,3 @@
-"""
-detector.py
-
-This module contains the computer-vision logic.
-
-The goal is to keep YOLO and OpenCV code separate from FastAPI.
-That way, the detector can later be reused by:
-    - FastAPI
-    - a command-line script
-    - a batch-processing script
-    - a video-processing script
-"""
-
 from pathlib import Path
 
 import cv2
@@ -19,10 +6,6 @@ from ultralytics import YOLO
 
 
 # Load the model once when this module is imported.
-#
-# This is important.
-# We DON'T want to load YOLO every time someone uploads an image,
-# because loading the model repeatedly would waste time and memory.
 model = YOLO("yolov8n.pt")
 
 
@@ -31,30 +14,8 @@ def detect_image(
     output_path: str,
     confidence_threshold: float = 0.4
 ):
-    """
-    Run YOLO detection on one image.
-
-    Parameters:
-        image_path:
-            Location of the input image.
-
-        output_path:
-            Where the annotated image should be saved.
-
-        confidence_threshold:
-            Minimum confidence required for a detection.
-
-    Returns:
-        A dictionary containing:
-            - detections
-            - summary
-            - output path
-    """
-
-    # ---------------------------------------------------------
+    
     # STEP 1 — Load the image
-    # ---------------------------------------------------------
-    #
     # OpenCV loads images as NumPy arrays.
     image = cv2.imread(image_path)
 
@@ -63,16 +24,8 @@ def detect_image(
             f"Could not read image: {image_path}"
         )
 
-    # ---------------------------------------------------------
+    
     # STEP 2 — Run YOLO
-    # ---------------------------------------------------------
-    #
-    # YOLO performs:
-    #   classification -> WHAT is present?
-    #   localization   -> WHERE is it?
-    #
-    # The result contains bounding boxes, class IDs
-    # and confidence scores.
     results = model.predict(
         source=image,
         conf=confidence_threshold,
@@ -81,13 +34,11 @@ def detect_image(
 
     result = results[0]
 
-    # This list will contain information about every
-    # detected object.
+    # This list will contain information about every detected object.
     detections = []
 
-    # ---------------------------------------------------------
     # STEP 3 — Process each detection
-    # ---------------------------------------------------------
+    
     for box in result.boxes:
 
         # Extract the class ID.
@@ -99,20 +50,15 @@ def detect_image(
         # Extract confidence.
         confidence = float(box.conf[0])
 
-        # YOLO gives us:
-        #
+        
         # x1, y1 = top-left corner
         # x2, y2 = bottom-right corner
-        #
         # These are pixel coordinates for this image.
         x1, y1, x2, y2 = [
             int(value) for value in box.xyxy[0]
         ]
 
-        # -----------------------------------------------------
         # STEP 4 — Draw our own bounding box
-        # -----------------------------------------------------
-
         # Draw the object rectangle.
         cv2.rectangle(
             image,
@@ -154,7 +100,6 @@ def detect_image(
         # -----------------------------------------------------
         # STEP 5 — Store structured detection information
         # -----------------------------------------------------
-        #
         # We don't just draw the result.
         # We also store the data because we need it later
         # to calculate our summary table and return JSON
@@ -167,10 +112,7 @@ def detect_image(
             }
         )
 
-    # ---------------------------------------------------------
     # STEP 6 — Create the summary table
-    # ---------------------------------------------------------
-    #
     # We convert our detection list into a pandas DataFrame.
     # This makes grouping and calculating averages easy.
     if detections:
@@ -186,14 +128,7 @@ def detect_image(
             .reset_index()
         )
 
-        # Convert confidence from:
-        #
-        # 0.8734
-        #
-        # into:
-        #
-        # 87.34
-        #
+        # Convert confidence from: 0.8734 into: 87.34
         # This is easier to read in our API response.
         summary_df["average_confidence"] *= 100
 
@@ -207,10 +142,7 @@ def detect_image(
         # a valid response rather than crashing.
         summary = []
 
-    # ---------------------------------------------------------
     # STEP 7 — Save annotated image
-    # ---------------------------------------------------------
-
     # Make sure the output directory exists.
     Path(output_path).parent.mkdir(
         parents=True,
@@ -222,9 +154,7 @@ def detect_image(
         image
     )
 
-    # ---------------------------------------------------------
     # STEP 8 — Return structured results
-    # ---------------------------------------------------------
     return {
         "detections": detections,
         "summary": summary,
